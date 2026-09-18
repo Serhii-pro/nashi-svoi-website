@@ -14,7 +14,6 @@ exports.handler = async function (event) {
     const API_URL = "https://send.monobank.ua/api/handler";
     const JAR_ID = "4hBqDMCoeA";
 
-    // Формируем тело POST-запроса, как в оригинальном API
     const requestBody = {
       c: "hello",
       clientId: JAR_ID,
@@ -34,15 +33,18 @@ exports.handler = async function (event) {
       body: JSON.stringify(requestBody),
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.log(`Ошибка API (Статус ${response.status}):`, errorText);
-      throw new Error(`API Монобанка вернул статус ${response.status}`);
-    }
-
     const data = await response.json();
 
-    // Берем данные напрямую из структуры JSON-ответа
+    // Выводим точный ответ Монобанка в терминал Netlify
+    console.log("Ответ от Монобанка:", data);
+
+    // Если Монобанк прислал ошибку вместо данных
+    if (data.errCode || !data.jarAmount) {
+      throw new Error(
+        `API Монобанка не вернул сумму. Ответ: ${JSON.stringify(data)}`,
+      );
+    }
+
     const rawAmount = data.jarAmount ?? 0;
     const rawGoal = data.jarGoal ?? data.goal ?? 0;
 
@@ -60,8 +62,6 @@ exports.handler = async function (event) {
         percent,
         amountFormatted: formatUAH(amount),
         goalFormatted: goal > 0 ? formatUAH(goal) : "",
-        name: data.name || "",
-        ownerName: data.ownerName || "",
       }),
     };
   } catch (err) {
