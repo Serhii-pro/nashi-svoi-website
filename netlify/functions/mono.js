@@ -13,37 +13,32 @@ exports.handler = async function (event) {
   try {
     const JAR_URL = "https://send.monobank.ua/jar/4hBqDMCoeA";
 
-    // Используем современный fetch с имитацией реального браузера
     const response = await fetch(JAR_URL, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept-Language": "uk-UA,uk;q=0.9",
         "Cache-Control": "no-cache",
       },
     });
 
     const html = await response.text();
-    const stateMatch =
-      html.match(/window\.state\s*=\s*(\{[\s\S]*?\});/) ||
-      html.match(/window\["state"\]\s*=\s*(\{[\s\S]*?\})/);
 
-    // Если данные не найдены, выводим кусок HTML в логи Netlify для диагностики
-    if (!stateMatch) {
-      console.log(
-        "Полученный HTML (первые 300 символов):",
-        html.substring(0, 300),
-      );
-      throw new Error(
-        "window.state не найден. Скорее всего, Монобанк заблокировал запрос (Cloudflare).",
-      );
+    // Ищем значения суммы и цели напрямую в сыром коде всей страницы
+    const amountMatch = html.match(/"amount"\s*:\s*(\d+)/);
+    const goalMatch = html.match(/"goal"\s*:\s*(\d+)/);
+
+    if (!amountMatch) {
+      // Если даже так не нашло, выводим весь код в логи, чтобы найти, как они теперь это прячут
+      console.log("Полный HTML страницы:", html);
+      throw new Error("Не удалось найти 'amount' в коде страницы.");
     }
 
-    const state = JSON.parse(stateMatch[1]);
-    const rawAmount = state.jar?.amount ?? state.amount ?? 0;
-    const rawGoal = state.jar?.goal ?? state.goal ?? 0;
+    // Монобанк хранит данные в копейках
+    const rawAmount = parseInt(amountMatch[1], 10);
+    const rawGoal = goalMatch ? parseInt(goalMatch[1], 10) : 0;
 
     const amount = Math.round(rawAmount / 100);
     const goal = Math.round(rawGoal / 100);
