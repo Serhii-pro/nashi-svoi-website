@@ -1,7 +1,7 @@
 exports.handler = async function (event) {
   const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
     "Content-Type": "application/json",
   };
@@ -11,34 +11,40 @@ exports.handler = async function (event) {
   }
 
   try {
-    const JAR_URL = "https://send.monobank.ua/jar/4hBqDMCoeA";
+    const API_URL = "https://send.monobank.ua/api/handler";
+    const JAR_ID = "4hBqDMCoeA";
 
-    const response = await fetch(JAR_URL, {
+    // Формируем тело POST-запроса, как в оригинальном API
+    const requestBody = {
+      c: "hello",
+      clientId: JAR_ID,
+      referer: "",
+    };
+
+    const response = await fetch(API_URL, {
+      method: "POST",
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-        Accept:
-          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "uk-UA,uk;q=0.9",
-        "Cache-Control": "no-cache",
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        Origin: "https://send.monobank.ua",
+        Referer: `https://send.monobank.ua/jar/${JAR_ID}`,
       },
+      body: JSON.stringify(requestBody),
     });
 
-    const html = await response.text();
-
-    // Ищем значения суммы и цели напрямую в сыром коде всей страницы
-    const amountMatch = html.match(/"amount"\s*:\s*(\d+)/);
-    const goalMatch = html.match(/"goal"\s*:\s*(\d+)/);
-
-    if (!amountMatch) {
-      // Если даже так не нашло, выводим весь код в логи, чтобы найти, как они теперь это прячут
-      console.log("Полный HTML страницы:", html);
-      throw new Error("Не удалось найти 'amount' в коде страницы.");
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.log(`Ошибка API (Статус ${response.status}):`, errorText);
+      throw new Error(`API Монобанка вернул статус ${response.status}`);
     }
 
-    // Монобанк хранит данные в копейках
-    const rawAmount = parseInt(amountMatch[1], 10);
-    const rawGoal = goalMatch ? parseInt(goalMatch[1], 10) : 0;
+    const data = await response.json();
+
+    // Берем данные напрямую из структуры JSON-ответа
+    const rawAmount = data.jarAmount ?? 0;
+    const rawGoal = data.jarGoal ?? data.goal ?? 0;
 
     const amount = Math.round(rawAmount / 100);
     const goal = Math.round(rawGoal / 100);
@@ -54,6 +60,8 @@ exports.handler = async function (event) {
         percent,
         amountFormatted: formatUAH(amount),
         goalFormatted: goal > 0 ? formatUAH(goal) : "",
+        name: data.name || "",
+        ownerName: data.ownerName || "",
       }),
     };
   } catch (err) {
