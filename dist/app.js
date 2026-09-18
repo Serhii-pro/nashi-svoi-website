@@ -21,8 +21,25 @@ const back = () =>
   `<a class="back" href="#funds">${icon("back")}<span>Збори</span></a>`;
 const donation = (label) =>
   `<div class="donation"><a href="https://send.monobank.ua/jar/4hBqDMCoeA" target="_blank" rel="noopener noreferrer" class="primary">${icon("heart")}${label}</a></div>`;
+
+// Progress bar block with live Monobank data (replaces static donation block on detail pages)
+const monoProgressBlock = (label) =>
+  `<div class="donation">
+    <div class="mono-progress-wrap">
+      <div class="progress mono-progress" id="mono-progress-bar" role="progressbar" aria-label="Прогрес збору" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+        <span id="mono-progress-fill" style="width:0%"></span>
+      </div>
+      <div class="progress-meta">
+        <span><strong id="mono-amount">—</strong> зібрано</span>
+        <span class="percent" id="mono-percent">…</span>
+        <span>з <strong id="mono-goal">—</strong></span>
+      </div>
+    </div>
+    <a href="https://send.monobank.ua/jar/4hBqDMCoeA" target="_blank" rel="noopener noreferrer" class="primary">${icon("heart")}${label}</a>
+  </div>`;
+
 const viktor =
-  () => `${back()}<div class="detail-hero"><div class="portrait" role="img" aria-label="Ініціал Віктора — місце для його фотографії"><div class="portrait-inner"><span class="initial" aria-hidden="true">В</span></div><span class="portrait-badge">${icon("heart")}</span></div><section class="detail-info"><h1>Віктор, протезування ноги</h1><p class="detail-subtitle">Поранення отримане під Бахмутом</p>${donation("Задонатити")}</section></div>
+  () => `${back()}<div class="detail-hero"><div class="portrait" role="img" aria-label="Ініціал Віктора — місце для його фотографії"><div class="portrait-inner"><span class="initial" aria-hidden="true">В</span></div><span class="portrait-badge">${icon("heart")}</span></div><section class="detail-info"><h1>Віктор, протезування ноги</h1><p class="detail-subtitle">Поранення отримане під Бахмутом</p>${monoProgressBlock("Задонатити")}</section></div>
 <div class="detail-lower"><section class="panel"><h2 class="eyebrow">ІСТОРІЯ</h2><p class="story">Коротка розповідь про пораненого, обставини, чому потрібне саме протезування, і як це вплине на його життя.</p></section><section class="panel"><h2 class="eyebrow">ДОКУМЕНТАЦІЯ</h2><button class="document-row" data-demo="document">${icon("file")}<span>Довідка про поранення</span>${icon("external")}</button><button class="document-row" data-demo="document">${icon("file")}<span>Кошторис на лікування</span>${icon("external")}</button></section></div>`;
 const needs = [
   ["shirt", "Одяг та речі першої потреби", "tone-yellow"],
@@ -32,7 +49,7 @@ const needs = [
   ["gift", "Солодощі та подарунки на свята", "tone-yellow"],
 ];
 const children = () =>
-  `${back()}<div class="children-layout"><section class="children-story"><span class="children-icon">${icon("heart")}</span><h1 class="quote">Це діти, які вже втратили більше, ніж мали б у своєму віці. Наша мета — щоб вони мали тепло, турботу і відчуття, що про них не забули.</h1></section><section class="children-fund" aria-label="Збір на допомогу дітям">${donation("Підтримати дітей")}<div class="statistics"><div class="stat"><strong>47</strong><span>дітей у центрі</span></div><div class="stat"><strong>3</strong><span>закриті потреби</span></div></div></section></div><section class="panel needs"><h2 class="eyebrow">НА ЩО ЙДУТЬ КОШТИ</h2><div class="needs-list">${needs.map(([type, text, tone]) => `<div class="need ${tone}"><span class="small-icon">${icon(type)}</span><span>${text}</span></div>`).join("")}</div></section>`;
+  `${back()}<div class="children-layout"><section class="children-story"><span class="children-icon">${icon("heart")}</span><h1 class="quote">Це діти, які вже втратили більше, ніж мали б у своєму віці. Наша мета — щоб вони мали тепло, турботу і відчуття, що про них не забули.</h1></section><section class="children-fund" aria-label="Збір на допомогу дітям">${monoProgressBlock("Підтримати дітей")}<div class="statistics"><div class="stat"><strong>47</strong><span>дітей у центрі</span></div><div class="stat"><strong>3</strong><span>закриті потреби</span></div></div></section></div><section class="panel needs"><h2 class="eyebrow">НА ЩО ЙДУТЬ КОШТИ</h2><div class="needs-list">${needs.map(([type, text, tone]) => `<div class="need ${tone}"><span class="small-icon">${icon(type)}</span><span>${text}</span></div>`).join("")}</div></section>`;
 const templates = { funds, viktor, children };
 
 const notices = {
@@ -55,6 +72,62 @@ function notice(kind) {
   $("#notice-description").textContent = text;
   $("#notice").showModal();
 }
+
+// ── Monobank live data ──────────────────────────────────────────────────────
+let monoCache = null;
+let monoCacheTime = 0;
+const MONO_CACHE_TTL = 60_000; // refresh every 60 s
+
+async function fetchMono() {
+  const now = Date.now();
+  if (monoCache && now - monoCacheTime < MONO_CACHE_TTL) return monoCache;
+
+  try {
+    const res = await fetch("/.netlify/functions/mono");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    monoCache = data;
+    monoCacheTime = now;
+    return data;
+  } catch (err) {
+    console.warn("Monobank fetch failed:", err.message);
+    return null;
+  }
+}
+
+function applyMonoData(data) {
+  if (!data) return;
+
+  const bar    = document.getElementById("mono-progress-bar");
+  const fill   = document.getElementById("mono-progress-fill");
+  const amount = document.getElementById("mono-amount");
+  const goal   = document.getElementById("mono-goal");
+  const pct    = document.getElementById("mono-percent");
+
+  if (!fill) return; // not on a detail page
+
+  const percent = data.percent ?? 0;
+
+  // Animate the bar smoothly
+  requestAnimationFrame(() => {
+    fill.style.transition = "width 1.2s cubic-bezier(.4,0,.2,1)";
+    fill.style.width = percent + "%";
+  });
+
+  if (bar) {
+    bar.setAttribute("aria-valuenow", percent);
+  }
+  if (amount) amount.textContent = data.amountFormatted ?? data.amount + " ₴";
+  if (goal)   goal.textContent   = data.goalFormatted   ?? data.goal   + " ₴";
+  if (pct)    pct.textContent    = percent + "%";
+}
+
+async function loadMono() {
+  const data = await fetchMono();
+  applyMonoData(data);
+}
+
+// ── Rendering ───────────────────────────────────────────────────────────────
 function render() {
   const key = location.hash.slice(1) || "funds";
   const page = templates[key] ? key : "funds";
@@ -70,6 +143,11 @@ function render() {
       children: "Підтримати дітей",
     }[page] + " — Наші свої";
   window.scrollTo(0, 0);
+
+  // Load live Monobank data on detail pages
+  if (page === "viktor" || page === "children") {
+    loadMono();
+  }
 }
 document
   .querySelectorAll("[data-icon]")
