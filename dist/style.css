@@ -38,3 +38,34 @@
   background: var(--green-dark);
   box-shadow: none;
 }
+
+/* ── Кнопки соцсетей (WhatsApp / Telegram / TikTok) ────────────────────── */
+.contact {
+  transition: transform 0.25s ease, filter 0.25s ease, box-shadow 0.25s ease;
+}
+.contact:hover {
+  transform: scale(1.03);
+  filter: brightness(1.04);
+  box-shadow: 0 6px 18px #1e4a2e14;
+}
+.contact:active {
+  transform: scale(0.97);
+  filter: brightness(0.97);
+  box-shadow: none;
+}
+
+/* ── Строки волонтеров ──────────────────────────────────────────────────── */
+.volunteer {
+  transition: transform 0.25s ease, background 0.25s ease, border-radius 0.25s ease;
+  border-radius: 12px;
+  padding: 6px 8px;
+  margin: -6px -8px;
+}
+.volunteer:hover {
+  transform: translateX(6px);
+  background: #f0f5ee;
+}
+.volunteer + .volunteer {
+  margin-top: 9px;
+  padding-top: 9px;
+}
