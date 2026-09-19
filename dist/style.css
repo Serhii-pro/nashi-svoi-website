@@ -63,7 +63,7 @@
 }
 .volunteer:hover {
   transform: translateX(6px);
-  background: #f0f5ee;
+  background: var(--hover);
 }
 .volunteer + .volunteer {
   margin-top: 9px;
