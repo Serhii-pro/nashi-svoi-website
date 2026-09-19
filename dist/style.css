@@ -8,5 +8,33 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 
 .contact.tiktok{grid-column:1/-1;background:var(--peach);align-items:center}.contact.tiktok svg{color:var(--peach-ink,#8a583b)}
-.mono-progress-wrap{margin-bottom:4px}.mono-progress{height:10px;margin-bottom:0}.mono-progress>span{transition:width 1.2s cubic-bezier(.4,0,.2,1)}.progress-meta{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin-top:12px;font-size:17px;color:var(--muted)}.progress-meta strong{color:var(--ink);font-weight:750}.progress-meta .percent{color:var(--green);font-size:22px;font-weight:750}
-@keyframes mono-pulse{0%,100%{opacity:1}50%{opacity:.45}}#mono-amount,#mono-goal,#mono-percent{transition:all .5s ease}#mono-percent:empty,#mono-amount:empty,#mono-goal:empty{display:inline-block;min-width:48px;height:1em;background:var(--line);border-radius:6px;animation:mono-pulse 1.4s ease-in-out infinite;vertical-align:middle}
+
+/* ── Карточки сборов: плавный подъём при наведении ─────────────────────── */
+.fund-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.fund-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px #1e4a2e1a, 0 4px 10px #1e4a2e0d;
+  border-color: #95b09b;
+}
+.fund-card:active {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px #1e4a2e14;
+}
+
+/* ── Кнопка «Задонатити»: scale + прожим при клике ─────────────────────── */
+.primary {
+  transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  will-change: transform;
+}
+.primary:hover {
+  background: var(--green-dark);
+  transform: scale(1.02);
+  box-shadow: 0 8px 22px #0a4f3b30;
+}
+.primary:active {
+  transform: scale(0.97);
+  background: var(--green-dark);
+  box-shadow: none;
+}
